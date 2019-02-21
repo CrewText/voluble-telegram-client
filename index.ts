@@ -51,7 +51,7 @@ Tdlib.send({
         "use_chat_info_database_": true,
         "use_message_database_": true,
         "use_secret_chats_": false,
-        "api_id_": process.env.TELEGRAM_API_ID,
+        "api_id_": parseInt(process.env.TELEGRAM_API_ID || "1", 10),
         "api_hash_": process.env.TELEGRAM_API_HASH,
         "system_language_code_": "en-gb",
         "device_model_": "Asus Zenbook",
