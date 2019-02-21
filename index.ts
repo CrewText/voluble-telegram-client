@@ -44,21 +44,21 @@ Tdlib.authorize()
 Tdlib.send({
     '@type': "setTdlibParameters",
     "parameters": {
-        "use_test_dc_": process.env.NODE_ENV == "production" ? true : false,
-        "database_directory_": "", // cwd
-        "files_directory_": "", //cwd
-        "use_file_database_": true,
-        "use_chat_info_database_": true,
-        "use_message_database_": true,
-        "use_secret_chats_": false,
-        "api_id_": parseInt(process.env.TELEGRAM_API_ID || "1", 10),
-        "api_hash_": process.env.TELEGRAM_API_HASH,
-        "system_language_code_": "en-gb",
-        "device_model_": "Asus Zenbook",
-        "system_version_": "Win10",
-        "application_version_": "1.0.0",
-        "enable_storage_optimizer_": true,
-        "ignore_file_names_": false
+        "use_test_dc": process.env.NODE_ENV == "production" ? true : false,
+        "database_directory": "", // cwd
+        "files_directory": "", //cwd
+        "use_file_database": true,
+        "use_chat_info_database": true,
+        "use_message_database": true,
+        "use_secret_chats": false,
+        "api_id": process.env.TELEGRAM_API_ID,
+        "api_hash": process.env.TELEGRAM_API_HASH,
+        "system_language_code": "en-gb",
+        "device_model": "Asus Zenbook",
+        "system_version": "Win10",
+        "application_version": "1.0.0",
+        "enable_storage_optimizer": true,
+        "ignore_file_names": false
     }
 })
 winston.log(Tdlib.receive(10))
