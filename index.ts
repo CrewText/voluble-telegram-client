@@ -2,6 +2,7 @@ import * as express from 'express';
 import * as voluble from 'voluble-common';
 import * as winston from 'winston';
 import { Tdlib } from './tdlib';
+var dotenv = require('dotenv').config()
 const bodyParser = require('body-parser');
 
 winston.configure({
