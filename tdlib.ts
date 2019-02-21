@@ -1,5 +1,4 @@
 import * as ffi from 'ffi-napi'
-import * as ref from 'ref-napi'
 import winston = require('winston');
 
 // tdlib JSON documentation here: https://core.telegram.org/tdlib/docs/td__json__client_8h.html
@@ -13,7 +12,7 @@ export namespace Tdlib {
         return buffer
     }
 
-    const PATH_TO_LIBRARY_FILE = '/var/vagrant/libtdjson.so'
+    const PATH_TO_LIBRARY_FILE = '/var/libtdjson.so'
     const tdlib = ffi.Library(
         PATH_TO_LIBRARY_FILE,
         {

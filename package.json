@@ -21,7 +21,6 @@
     "@types/express": "^4.16.1",
     "@types/ffi-napi": "^2.4.1",
     "@types/node": "^11.9.4",
-    "@types/ref-napi": "^1.4.0",
     "@types/winston": "^2.4.4",
     "typescript": "^3.3.3"
   },
@@ -29,7 +28,6 @@
     "body-parser": "^1.18.3",
     "express": "^4.16.4",
     "ffi-napi": "^2.4.4",
-    "ref-napi": "^1.4.1",
     "voluble-common": "git://github.com/calmcl1/voluble-common.git",
     "winston": "^3.2.1"
   }

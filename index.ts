@@ -41,7 +41,7 @@ process.env.NODE_ENV == "production" ? app.listen(PORT, onServerListening) : app
 Tdlib.authorize()
 
 Tdlib.send({
-    '@type': "tdlibParameters",
+    '@type': "setTdlibParameters",
     "parameters": {
         "use_test_dc_": process.env.NODE_ENV == "production" ? true : false,
         "database_directory_": "", // cwd
