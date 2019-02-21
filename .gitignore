@@ -61,5 +61,5 @@ typings/
 .next
 
 # Compiled code
-dist/
+dist
 *.so
