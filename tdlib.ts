@@ -1,5 +1,9 @@
 import * as ffi from 'ffi-napi'
 import * as ref from 'ref-napi'
+import winston = require('winston');
+
+// tdlib JSON documentation here: https://core.telegram.org/tdlib/docs/td__json__client_8h.html
+// tdlib API documentation here: https://core.telegram.org/tdlib/docs/classtd_1_1td__api_1_1_function.html
 
 
 export namespace Tdlib {
@@ -9,7 +13,7 @@ export namespace Tdlib {
         return buffer
     }
 
-    const PATH_TO_LIBRARY_FILE = 'libtdjson'
+    const PATH_TO_LIBRARY_FILE = '/var/vagrant/libtdjson.so'
     const tdlib = ffi.Library(
         PATH_TO_LIBRARY_FILE,
         {
@@ -37,8 +41,7 @@ export namespace Tdlib {
         )
     }
 
-    export function receive() {
-        const timeout = 2
+    export function receive(timeout = 2) {
         return JSON.parse(
             tdlib.td_json_client_receive(client, timeout)
         )
@@ -46,5 +49,11 @@ export namespace Tdlib {
 
     export function destroy() {
         tdlib.td_json_client_destroy(client)
+    }
+
+    export function authorize() {
+        send({ '@type': 'getAuthorizationState' })
+        let resp = receive(10)
+        winston.log(resp)
     }
 }
