@@ -16,7 +16,9 @@
     "url": "https://github.com/calmcl1/voluble-telegram-client/issues"
   },
   "homepage": "https://github.com/calmcl1/voluble-telegram-client#readme",
-  "devDependencies": {},
+  "devDependencies": {
+    "@types/node": "^11.9.4"
+  },
   "dependencies": {
     "ffi-napi": "^2.4.4",
     "ref-napi": "^1.4.1"
