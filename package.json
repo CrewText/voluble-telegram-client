@@ -24,10 +24,12 @@
     "typescript": "^3.3.3"
   },
   "dependencies": {
+    "bluebird": "^3.5.3",
     "body-parser": "^1.18.3",
     "dotenv": "^6.2.0",
     "express": "^4.16.4",
     "ffi-napi": "^2.4.4",
+    "tglib": "^2.1.1",
     "voluble-common": "git://github.com/calmcl1/voluble-common.git",
     "winston": "^3.2.1"
   }
