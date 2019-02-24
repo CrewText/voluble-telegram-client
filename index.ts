@@ -2,7 +2,7 @@ import * as express from 'express';
 import * as voluble from 'voluble-common';
 import * as winston from 'winston';
 import { TdLibClient } from './tdLibClient';
-const { Client } = require('tglib')
+import { TdError } from './tdApi';
 
 var dotenv = require('dotenv').config()
 const bodyParser = require('body-parser');
@@ -73,45 +73,50 @@ function tdSetup() {
         .then(function (resp) {
             //await asyncTimeout(1000)
             if (resp) {
-                winston.info("Returned from setting params:")
-                winston.info(resp)
+
             } else {
                 winston.info("Got nothing from param setting")
             }
             return
         })
-        .then(() => {
-            winston.info("checkDatabaseEncrpytionKey")
-            return Tdlib.sendQuery({
-                '@type': "checkDatabaseEncryptionKey",
-                "encryption_key": ""
-            })
-        })
-        .then(function (resp) {
-            if (resp) {
-                winston.info("response to checkDatabaseEncryptionKey:")
-                winston.info(resp)
-            }
-            return
-        })
-        .then(() => {
-            winston.info("Importing contacts")
-            return Tdlib.sendQuery({
-                '@type': 'importContacts', 'contacts': [
-                    {
-                        phone_number: "+447426437449",
-                        first_name: "Cal",
-                        last_name: "McLean"
-                    }
-                ]
-            })
-        })
-        .then(function (resp) {
-            if (resp) {
-                winston.info("response to addContact:")
-                winston.info(resp)
-            }
-            return
+        // .then(() => {
+        //     winston.info("checkDatabaseEncrpytionKey")
+        //     return Tdlib.sendQuery({
+        //         '@type': "checkDatabaseEncryptionKey",
+        //         "encryption_key": ""
+        //     })
+        // })
+        // .then(function (resp) {
+        //     if (resp) {
+        //         winston.info("response to checkDatabaseEncryptionKey:")
+        //         winston.info(resp)
+        //     }
+        //     return
+        // })
+        // .then(() => {
+        //     winston.info("Importing contacts")
+        //     return Tdlib.sendQuery({
+        //         '@type': 'importContacts', 'contacts': [
+        //             {
+        //                 phone_number: "+447426437449",
+        //                 first_name: "Cal",
+        //                 last_name: "McLean"
+        //             }
+        //         ]
+        //     })
+        //         .catch((err: TdError) => {
+        //             winston.error(`Couldn't import contact: ${err.code} (${err.message})`)
+        //         })
+        // })
+        // .then(function (resp) {
+        //     if (resp) {
+        //         winston.info("response to addContact:")
+        //         winston.info(resp)
+        //     }
+        //     return
+        // })
+        .catch((err) => {
+            winston.error(err)
         })
 }
 
