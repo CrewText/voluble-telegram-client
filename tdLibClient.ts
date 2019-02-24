@@ -150,6 +150,8 @@ export class TdLibClient {
                     // This error is a response to a manual request, pass it on
                     this.inFlightRequests[err["@extra"]].reject(err)
                     delete this.inFlightRequests[err["@extra"]]
+                } else {
+                    winston.error(`Caught error ${err.code}: ${err.message}`)
                 }
                 return
             })
