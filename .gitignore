@@ -63,3 +63,4 @@ typings/
 # Compiled code
 dist
 *.so
+/logs.txt
