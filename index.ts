@@ -3,6 +3,7 @@ import * as voluble from 'voluble-common';
 import * as winston from 'winston';
 import { TdLibClient } from './tdLibClient';
 import { TdError } from './tdApi';
+import * as readline from 'readline'
 
 var dotenv = require('dotenv').config()
 const bodyParser = require('body-parser');
@@ -93,28 +94,58 @@ function tdSetup() {
         //     }
         //     return
         // })
-        // .then(() => {
-        //     winston.info("Importing contacts")
-        //     return Tdlib.sendQuery({
-        //         '@type': 'importContacts', 'contacts': [
-        //             {
-        //                 phone_number: "+447426437449",
-        //                 first_name: "Cal",
-        //                 last_name: "McLean"
-        //             }
-        //         ]
-        //     })
-        //         .catch((err: TdError) => {
-        //             winston.error(`Couldn't import contact: ${err.code} (${err.message})`)
-        //         })
-        // })
-        // .then(function (resp) {
-        //     if (resp) {
-        //         winston.info("response to addContact:")
-        //         winston.info(resp)
-        //     }
-        //     return
-        // })
+        .then(() => {
+            const rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout
+            });
+            return new Promise((res, rej) => {
+                rl.question('Update code?', (answer) => {
+                    res(Tdlib.sendQuery({
+                        '@type': "checkAuthenticationCode",
+                        "code": answer,
+                        "first_name": "Cal",
+                        "last_name": "McLean"
+                    }))
+                })
+            })
+
+        })
+        .then(() => {
+            winston.info("Importing contacts")
+            return Tdlib.sendQuery({
+                '@type': 'importContacts', 'contacts': [
+                    {
+                        phone_number: "+447426437449",
+                        first_name: "Cal",
+                        last_name: "McLean"
+                    }
+                ]
+            })
+                .catch((err: TdError) => {
+                    winston.error(`Couldn't import contact: ${err.code} (${err.message})`)
+                })
+        })
+        .then(function (resp) {
+            if (resp) {
+                winston.info("response to addContact:")
+                winston.info(resp)
+            }
+            return
+        })
+        .then(() => {
+            return Tdlib.sendQuery({
+                '@type': "getChats",
+                "offset_order": 2 ** 63 - 1,
+                "offset_chat_id": 0
+            })
+                .catch((err: TdError) => {
+                    winston.error(`Couldn't get chats: ${err.code} (${err.message})`)
+                })
+        })
+        .then((resp) => {
+            winston.info(resp ? resp : { msg: "No response for getting chats" })
+        })
         .catch((err) => {
             winston.error(err)
         })

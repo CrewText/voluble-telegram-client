@@ -2,7 +2,7 @@ import * as ffi from 'ffi-napi'
 var winston = require('winston');
 import * as path from 'path'
 import * as crypto from 'crypto'
-import { TdQuery, TdUpdate, TdUpdateAuthorizationState, ITdObject, TdError, TdOk } from './tdApi'
+import { TdQuery, TdUpdate, TdUpdateAuthorizationState, ITdObject, TdError, TdOk, TdUpdateOption } from './tdApi'
 
 // tdlib JSON documentation here: https://core.telegram.org/tdlib/docs/td__json__client_8h.html
 // tdlib API documentation here: https://core.telegram.org/tdlib/docs/classtd_1_1td__api_1_1_function.html
@@ -116,6 +116,10 @@ export class TdLibClient {
                 .then(() => {
                     return new Promise<TdUpdate | TdOk>((resolve, reject) => {
                         this.inFlightRequests[query_id] = { resolve, reject }
+                        setTimeout(() => {
+                            // Make this a proper Error!
+                            reject(<TdError>{ "code": 999, "message": "Timed Out" })
+                        }, 10000)
                     })
                 })
         } catch (err) {
@@ -140,6 +144,8 @@ export class TdLibClient {
                     "phone_number": "+447426437449",
                     "allow_flash_call": false,
                     "is_current_phone_number": true //even though this is ignore
+                    // "@type": "checkAuthenticationBotToken",
+                    // "token": process.env.TELEGRAM_BOT_TOKEN
                 })
             case "authorizationStateWaitTdlibParameters":
                 break
