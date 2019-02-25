@@ -59,7 +59,7 @@ export class TdLibClient {
             return new Promise((resolve, reject) => {
                 this.tdlib.td_json_client_send.async(this.client, this.buildQuery(query), (err: Error, res: any) => {
                     if (err) {
-                        winston.error(`Couldn't send query ${query["@type"]}`)
+                        console.error(`Couldn't send query ${query["@type"]}`)
                         reject(err)
                     }
                     else {
@@ -67,7 +67,7 @@ export class TdLibClient {
                     }
                 })
             })
-                .catch((err) => { winston.error("i love errors") })
+                .catch((err) => { console.error("i love errors") })
         } catch{
             throw new Error("oh noes")
         }
@@ -88,7 +88,7 @@ export class TdLibClient {
         return new Promise((resolve, reject) => {
             this.tdlib.td_json_client_receive.async(this.client, timeout, (err: Error, res: any) => {
                 if (err) {
-                    winston.info("Got error, should this be coerced in future?")
+                    console.info("Got error, should this be coerced in future?")
                     reject(err)
                 }
                 else if (!res) {
@@ -112,7 +112,7 @@ export class TdLibClient {
     async sendQuery(query: TdQuery) {
         let query_id = Math.floor(Math.random() * (2 ** 32) - 1)
         query["@extra"] = query_id
-        winston.info("Sending req " + query_id + ": " + query["@type"])
+        console.info("Sending req " + query_id + ": " + query["@type"])
         try {
             return this._send(query)
                 .then(() => {
@@ -125,74 +125,83 @@ export class TdLibClient {
                     })
                 })
         } catch (err) {
-            winston.error("couldn't use sendQuery for " + query["@type"])
+            console.error("couldn't use sendQuery for " + query["@type"])
         }
     }
 
     private async handleUpdateAuthorizationState(authState: TdUpdateAuthorizationState) {
-        winston.debug(`Received authorization_state: ${authState.authorization_state["@type"]}`)
-        switch (authState.authorization_state["@type"]) {
-            case "authorizationStateWaitCode":
-                return await new Promise((res, rej) => {
-                    const rl = readline.createInterface({
-                        input: process.stdin,
-                        output: process.stdout
-                    });
-                    rl.question('Update code?', (answer) => {
-                        res(this.sendQuery({
-                            '@type': "checkAuthenticationCode",
-                            "code": answer,
-                            "first_name": "Cal",
-                            "last_name": "McLean"
-                        }))
+        console.debug(`Received authorization_state: ${authState.authorization_state["@type"]}`)
+        try {
+            switch (authState.authorization_state["@type"]) {
+                case "authorizationStateWaitCode":
+                    return await new Promise((res, rej) => {
+                        const rl = readline.createInterface({
+                            input: process.stdin,
+                            output: process.stdout
+                        });
+                        rl.question('Update code?', (answer) => {
+                            res(this._send({
+                                '@type': "checkAuthenticationCode",
+                                "code": answer,
+                                "first_name": "Cal",
+                                "last_name": "McLean"
+                            }))
+                        })
                     })
-                })
 
-            case "authorizationStateWaitEncryptionKey":
-                winston.debug("Sending checkDatabaseEncryptionKey with default key")
-                return await this._send({ "@type": "checkDatabaseEncryptionKey", "encryption_key": "" })
+                case "authorizationStateWaitEncryptionKey":
+                    console.debug("Sending checkDatabaseEncryptionKey with default key")
+                    return await this._send({ "@type": "checkDatabaseEncryptionKey", "encryption_key": "" })
 
-            case "authorizationStateWaitPassword":
-                break
+                case "authorizationStateWaitPassword":
+                    break
 
-            case "authorizationStateWaitPhoneNumber":
-                winston.debug("Sending setAuthenticationPhoneNumber")
-                return await this._send({
-                    "@type": "setAuthenticationPhoneNumber",
-                    "phone_number": "+447426437449",
-                    "allow_flash_call": false,
-                    "is_current_phone_number": true //even though this is ignore
-                    // "@type": "checkAuthenticationBotToken",
-                    // "token": process.env.TELEGRAM_BOT_TOKEN
-                })
+                case "authorizationStateWaitPhoneNumber":
+                    console.debug("Sending setAuthenticationPhoneNumber")
+                    console.debug("Using number: " + process.env.TELEGRAM_PHONE_NUMBER)
+                    return await this._send({
+                        "@type": "setAuthenticationPhoneNumber",
+                        "phone_number": process.env.TELEGRAM_PHONE_NUMBER,
+                        "allow_flash_call": false,
+                        "is_current_phone_number": true //even though this is ignore
+                        // "@type": "checkAuthenticationBotToken",
+                        // "token": process.env.TELEGRAM_BOT_TOKEN
+                    })
 
-            case "authorizationStateWaitTdlibParameters":
-                return await this.sendQuery({
-                    '@type': "setTdlibParameters",
-                    "parameters": {
-                        "use_test_dc": process.env.NODE_ENV == "production" ? true : false,
-                        "database_directory": "", // cwd
-                        "files_directory": "", //cwd
-                        "use_file_database": true,
-                        "use_chat_info_database": true,
-                        "use_message_database": true,
-                        "use_secret_chats": false,
-                        "api_id": process.env.TELEGRAM_API_ID,
-                        "api_hash": process.env.TELEGRAM_API_HASH,
-                        "system_language_code": "en-gb",
-                        "device_model": "Asus Zenbook",
-                        "system_version": "Win10",
-                        "application_version": "1.0.0",
-                        "enable_storage_optimizer": true,
-                        "ignore_file_names": false
-                    }
-                })
+                case "authorizationStateWaitTdlibParameters":
+                    return await this._send({
+                        '@type': "setTdlibParameters",
+                        "parameters": {
+                            "use_test_dc": process.env.NODE_ENV == "production" ? true : false,
+                            "database_directory": "", // cwd
+                            "files_directory": "", //cwd
+                            "use_file_database": true,
+                            "use_chat_info_database": true,
+                            "use_message_database": true,
+                            "use_secret_chats": false,
+                            "api_id": process.env.TELEGRAM_API_ID,
+                            "api_hash": process.env.TELEGRAM_API_HASH,
+                            "system_language_code": "en-gb",
+                            "device_model": "Asus Zenbook",
+                            "system_version": "Win10",
+                            "application_version": "1.0.0",
+                            "enable_storage_optimizer": true,
+                            "ignore_file_names": false
+                        }
+                    })
 
-            case "authorizationStateReady":
-                winston.debug("Authorized and ready")
-                this.events.emit('ready')
-                break
+                case "authorizationStateReady":
+                    console.debug("Authorized and ready")
+                    this.events.emit('ready')
+                    break
 
+            }
+        } catch (err) {
+            console.info("Got err from AuthStateHandler")
+            console.error(err)
+            return await this._send({
+                '@type': 'getAuthorizationState'
+            })
         }
     }
 
@@ -202,13 +211,14 @@ export class TdLibClient {
         try {
             update = await this._receive()
         } catch (err) {
-            winston.error(`Caught error ${err.code}: ${err.message}`)
+            console.error(`Caught error ${err.code}: ${err.message}, diagnosing`)
             if (err["@extra"]) {
                 // This error is a response to a manual request, pass it on
                 this.inFlightRequests[err["@extra"]].reject(<TdError>err)
                 delete this.inFlightRequests[err["@extra"]]
             } else {
-                winston.error(`Caught error ${err.code}: ${err.message}`)
+                console.error(`Caught error ${err.code}: ${err.message}`)
+                console.error(err)
             }
         }
 
@@ -216,7 +226,11 @@ export class TdLibClient {
             switch (update["@type"]) {
                 case "updateAuthorizationState":
                     this.handleUpdateAuthorizationState(<TdUpdateAuthorizationState>update)
-                        .catch((err) => { throw err })
+                        .catch((err) => {
+                            console.log("got err caught")
+                            console.error(err)
+                            throw err
+                        })
                     break
                 case "updateOption":
                     break
@@ -229,8 +243,8 @@ export class TdLibClient {
             if (update["@extra"]) {
                 /* This is a response to a request that was sent manually via
                  * sendQuery; there's a promise waiting for it, so just hand it over */
-                //winston.debug(`Not directly handling response to query ${update["@extra"]}`)
-                winston.debug(`Resolving request ${update["@extra"]} (${update["@type"]})`)
+                //console.debug(`Not directly handling response to query ${update["@extra"]}`)
+                console.debug(`Resolving request ${update["@extra"]} (${update["@type"]})`)
                 this.inFlightRequests[update['@extra']].resolve(update)
                 delete this.inFlightRequests[update["@extra"]]
             } else {
@@ -240,11 +254,11 @@ export class TdLibClient {
                 switch (update["@type"]) {
                     case "updateOption":
                         update = <TdUpdateOption>update
-                        winston.debug(`Got Option: '${update.name}': ${update.value.value}`)
+                        console.debug(`Got Option: '${update.name}': ${update.value.value}`)
                 }
 
-                // winston.info("Got unsolicited update")
-                // winston.info(update)
+                // console.info("Got unsolicited update")
+                // console.info(update)
             }
         }
 
