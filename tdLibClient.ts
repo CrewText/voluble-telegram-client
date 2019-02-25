@@ -191,6 +191,12 @@ export class TdLibClient {
                 /* This is an unsolicited update; Telegram is notifying us of something.
                  * Follow it up. */
 
+                switch (update["@type"]) {
+                    case "updateOption":
+                        update = <TdUpdateOption>update
+                        winston.debug(`Got Option: '${update.name}': ${update.value.value}`)
+                }
+
                 // winston.info("Got unsolicited update")
                 // winston.info(update)
             }

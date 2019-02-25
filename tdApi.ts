@@ -76,7 +76,16 @@ export interface TdUpdateNewInlineQuery extends TdUpdate { }
 export interface TdUpdateNewMessage extends TdUpdate { }
 export interface TdUpdateNewPreCheckoutQuery extends TdUpdate { }
 export interface TdUpdateNewShippingQuery extends TdUpdate { }
-export interface TdUpdateOption extends TdUpdate { }
+export interface TdUpdateOption extends TdUpdate {
+    "@type": "updateOption"
+    name: string,
+    value: TdOptionValue
+}
+
+export interface TdOptionValue extends ITdObject {
+    "@type": "optionValueInteger" | "optionValueString" | "optionValueBoolean" | "optionValueEmpty"
+    value: number | string | boolean | null
+}
 export interface TdUpdateRecentStickers extends TdUpdate { }
 export interface TdUpdateSavedAnimations extends TdUpdate { }
 export interface TdUpdateScopeNotificationSettings extends TdUpdate { }
