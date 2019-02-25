@@ -3,7 +3,7 @@ import * as voluble from 'voluble-common';
 import * as winston from 'winston';
 import { TdLibClient } from './tdLibClient';
 import { TdError } from './tdApi';
-import * as readline from 'readline'
+
 
 var dotenv = require('dotenv').config()
 const bodyParser = require('body-parser');
@@ -47,108 +47,61 @@ process.env.NODE_ENV == "production" ? app.listen(PORT, onServerListening) : app
 function tdSetup() {
 
     let Tdlib = new TdLibClient()
-    winston.info("setting params")
-    Tdlib.sendQuery({
-        '@type': "setTdlibParameters",
-        "parameters": {
-            "use_test_dc": process.env.NODE_ENV == "production" ? true : false,
-            "database_directory": "", // cwd
-            "files_directory": "", //cwd
-            "use_file_database": true,
-            "use_chat_info_database": true,
-            "use_message_database": true,
-            "use_secret_chats": false,
-            "api_id": process.env.TELEGRAM_API_ID,
-            "api_hash": process.env.TELEGRAM_API_HASH,
-            "system_language_code": "en-gb",
-            "device_model": "Asus Zenbook",
-            "system_version": "Win10",
-            "application_version": "1.0.0",
-            "enable_storage_optimizer": true,
-            "ignore_file_names": false
-        }
+    Tdlib.events.once('ready', () => {
+
+        Tdlib.sendQuery({
+            '@type': "getChats",
+            "offset_order": 2 ** 63 - 1,
+            "offset_chat_id": 0
+        })
+            .catch((err: TdError) => {
+                winston.error(`Couldn't get chats: ${err.code} (${err.message})`)
+            })
+            .then((resp) => {
+                winston.info(resp ? resp : { msg: "No response for getting chats" })
+            })
+            .catch((err) => {
+                winston.error(err)
+            })
     })
-        .catch((err) => {
-            winston.error(`Got error: ${err}`)
-        })
-        .then(function (resp) {
-            //await asyncTimeout(1000)
-            if (resp) {
 
-            } else {
-                winston.info("Got nothing from param setting")
-            }
-            return
-        })
-        // .then(() => {
-        //     winston.info("checkDatabaseEncrpytionKey")
-        //     return Tdlib.sendQuery({
-        //         '@type': "checkDatabaseEncryptionKey",
-        //         "encryption_key": ""
-        //     })
-        // })
-        // .then(function (resp) {
-        //     if (resp) {
-        //         winston.info("response to checkDatabaseEncryptionKey:")
-        //         winston.info(resp)
-        //     }
-        //     return
-        // })
-        .then(() => {
-            const rl = readline.createInterface({
-                input: process.stdin,
-                output: process.stdout
-            });
-            return new Promise((res, rej) => {
-                rl.question('Update code?', (answer) => {
-                    res(Tdlib.sendQuery({
-                        '@type': "checkAuthenticationCode",
-                        "code": answer,
-                        "first_name": "Cal",
-                        "last_name": "McLean"
-                    }))
-                })
-            })
-
-        })
-        .then(() => {
-            winston.info("Importing contacts")
-            return Tdlib.sendQuery({
-                '@type': 'importContacts', 'contacts': [
-                    {
-                        phone_number: "+447426437449",
-                        first_name: "Cal",
-                        last_name: "McLean"
-                    }
-                ]
-            })
-                .catch((err: TdError) => {
-                    winston.error(`Couldn't import contact: ${err.code} (${err.message})`)
-                })
-        })
-        .then(function (resp) {
-            if (resp) {
-                winston.info("response to addContact:")
-                winston.info(resp)
-            }
-            return
-        })
-        .then(() => {
-            return Tdlib.sendQuery({
-                '@type': "getChats",
-                "offset_order": 2 ** 63 - 1,
-                "offset_chat_id": 0
-            })
-                .catch((err: TdError) => {
-                    winston.error(`Couldn't get chats: ${err.code} (${err.message})`)
-                })
-        })
-        .then((resp) => {
-            winston.info(resp ? resp : { msg: "No response for getting chats" })
-        })
-        .catch((err) => {
-            winston.error(err)
-        })
+    // .then(() => {
+    //     winston.info("checkDatabaseEncrpytionKey")
+    //     return Tdlib.sendQuery({
+    //         '@type': "checkDatabaseEncryptionKey",
+    //         "encryption_key": ""
+    //     })
+    // })
+    // .then(function (resp) {
+    //     if (resp) {
+    //         winston.info("response to checkDatabaseEncryptionKey:")
+    //         winston.info(resp)
+    //     }
+    //     return
+    // })
+    //.catch((err) => { })
+    // .then(() => {
+    //     winston.info("Importing contacts")
+    //     return Tdlib.sendQuery({
+    //         '@type': 'importContacts', 'contacts': [
+    //             {
+    //                 phone_number: "+447426437449",
+    //                 first_name: "Cal",
+    //                 last_name: "McLean"
+    //             }
+    //         ]
+    //     })
+    //         .catch((err: TdError) => {
+    //             winston.error(`Couldn't import contact: ${err.code} (${err.message})`)
+    //         })
+    // })
+    // .then(function (resp) {
+    //     if (resp) {
+    //         winston.info("response to addContact:")
+    //         winston.info(resp)
+    //     }
+    //     return
+    // })
 }
 
 

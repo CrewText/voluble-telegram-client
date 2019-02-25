@@ -1,8 +1,8 @@
-import * as ffi from 'ffi-napi'
+import * as ffi from 'ffi-napi';
+import * as readline from 'readline';
+import { TdError, TdOk, TdQuery, TdUpdate, TdUpdateAuthorizationState, TdUpdateOption } from './tdApi';
+import { EventEmitter } from 'events';
 var winston = require('winston');
-import * as path from 'path'
-import * as crypto from 'crypto'
-import { TdQuery, TdUpdate, TdUpdateAuthorizationState, ITdObject, TdError, TdOk, TdUpdateOption } from './tdApi'
 
 // tdlib JSON documentation here: https://core.telegram.org/tdlib/docs/td__json__client_8h.html
 // tdlib API documentation here: https://core.telegram.org/tdlib/docs/classtd_1_1td__api_1_1_function.html
@@ -18,6 +18,7 @@ export class TdLibClient {
     tdlib: any
     private client: any
     private inFlightRequests: { resolve: (resp: TdUpdate | TdOk) => void, reject: (err: any) => void }[] = []
+    events = new EventEmitter()
 
     constructor() {
         this.tdlib = ffi.Library(
@@ -32,6 +33,7 @@ export class TdLibClient {
                 'td_set_log_verbosity_level': ['void', ['int']],
                 'td_set_log_fatal_error_callback': ['void', ['pointer']]
             }
+
         )
 
         // Create client
@@ -119,7 +121,7 @@ export class TdLibClient {
                         setTimeout(() => {
                             // Make this a proper Error!
                             reject(<TdError>{ "code": 999, "message": "Timed Out" })
-                        }, 10000)
+                        }, 30000)
                     })
                 })
         } catch (err) {
@@ -131,12 +133,28 @@ export class TdLibClient {
         winston.debug(`Received authorization_state: ${authState.authorization_state["@type"]}`)
         switch (authState.authorization_state["@type"]) {
             case "authorizationStateWaitCode":
-                break
+                return await new Promise((res, rej) => {
+                    const rl = readline.createInterface({
+                        input: process.stdin,
+                        output: process.stdout
+                    });
+                    rl.question('Update code?', (answer) => {
+                        res(this.sendQuery({
+                            '@type': "checkAuthenticationCode",
+                            "code": answer,
+                            "first_name": "Cal",
+                            "last_name": "McLean"
+                        }))
+                    })
+                })
+
             case "authorizationStateWaitEncryptionKey":
                 winston.debug("Sending checkDatabaseEncryptionKey with default key")
                 return await this._send({ "@type": "checkDatabaseEncryptionKey", "encryption_key": "" })
+
             case "authorizationStateWaitPassword":
                 break
+
             case "authorizationStateWaitPhoneNumber":
                 winston.debug("Sending setAuthenticationPhoneNumber")
                 return await this._send({
@@ -147,16 +165,38 @@ export class TdLibClient {
                     // "@type": "checkAuthenticationBotToken",
                     // "token": process.env.TELEGRAM_BOT_TOKEN
                 })
+
             case "authorizationStateWaitTdlibParameters":
-                break
+                return await this.sendQuery({
+                    '@type': "setTdlibParameters",
+                    "parameters": {
+                        "use_test_dc": process.env.NODE_ENV == "production" ? true : false,
+                        "database_directory": "", // cwd
+                        "files_directory": "", //cwd
+                        "use_file_database": true,
+                        "use_chat_info_database": true,
+                        "use_message_database": true,
+                        "use_secret_chats": false,
+                        "api_id": process.env.TELEGRAM_API_ID,
+                        "api_hash": process.env.TELEGRAM_API_HASH,
+                        "system_language_code": "en-gb",
+                        "device_model": "Asus Zenbook",
+                        "system_version": "Win10",
+                        "application_version": "1.0.0",
+                        "enable_storage_optimizer": true,
+                        "ignore_file_names": false
+                    }
+                })
+
             case "authorizationStateReady":
                 winston.debug("Authorized and ready")
+                this.events.emit('ready')
                 break
 
         }
     }
 
-    async doReceiveLoop() {
+    private async doReceiveLoop() {
         let update;
 
         try {
