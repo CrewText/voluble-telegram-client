@@ -1,6 +1,9 @@
 env:
     TDLIB_PATH: '~/libtdjson.so'
 
+container:
+  image: node:latest
+
 tdlib_task:    
   apt_script:
     - apt-get update
