@@ -7,7 +7,7 @@ container:
 tdlib_task:    
   apt_script:
     - apt-get update
-    - apt-get install clang cmake build-essential openssl libssl-dev zlib1g-dev zlib1g gperf cmake git
+    - apt-get install clang cmake build-essential openssl libssl-dev zlib1g-dev zlib1g gperf cmake git -q
 
   build_tdlib_cache:
     folder: td/build
@@ -23,4 +23,5 @@ tdlib_task:
 vtc_task:
   tsc_script:
     - npm install
+    - npm install typescript -G
     - tsc
