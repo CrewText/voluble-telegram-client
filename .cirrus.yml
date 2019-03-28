@@ -1,0 +1,21 @@
+env:
+    TDLIB_PATH: '~/libtdjson.so'
+
+tdlib_task:    
+  apt_script:
+    - apt-get update
+    - apt-get install clang cmake build-essential openssl libssl-dev zlib1g-dev zlib gperf cmake git npm
+
+  build_tdlib_cache:
+    folder: td/build
+    populate_script:
+      - git clone https://github.com/tdlib/td
+      - cd td
+      - mkdir build
+      - cd build
+      - GCC="clang" GXX="clang++" cmake -DCMAKE_BUILD_TYPE=Release ..
+      - cmake --build .
+      - cp libtdjson.so $TDLIB_PATH
+  
+vtc_task:
+  tsc_task: tsc

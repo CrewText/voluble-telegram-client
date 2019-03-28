@@ -1,7 +1,9 @@
 import * as ffi from 'ffi-napi';
 import * as readline from 'readline';
-import { TdError, TdOk, TdQuery, TdUpdate, TdUpdateAuthorizationState, TdUpdateOption } from './tdApi';
+//import * as tdapi from './tdApi';
+//import * as tdapi from './tdapi2'
 import { EventEmitter } from 'events';
+import { isNullOrUndefined } from 'util';
 var winston = require('winston');
 
 // tdlib JSON documentation here: https://core.telegram.org/tdlib/docs/td__json__client_8h.html
@@ -13,16 +15,42 @@ async function asyncTimeout(timeout = 500) {
     })
 }
 
-export class TdLibClient {
-    PATH_TO_LIBRARY_FILE: string = '/var/libtdjson.so'
+export interface TdObject {
+    '@type': string
+    '@extra'?: number
+    [key: string]: any
+}
+
+export class TdError extends Error {
+    code: number;
+    tdError: TdObject
+    constructor(err: TdObject) {
+        super(err.message)
+        this.name = "TdError"
+        this.code = err.code
+        this.tdError = err
+    }
+}
+
+export class TimeoutError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = "TimeoutError"
+    }
+}
+
+export class TdLibClient extends EventEmitter {
+    PATH_TO_LIBRARY_FILE = process.env.TDLIB_PATH
     tdlib: any
     private client: any
-    private inFlightRequests: { resolve: (resp: TdUpdate | TdOk) => void, reject: (err: any) => void }[] = []
-    events = new EventEmitter()
+    private inFlightRequests: { resolve: (resp: TdObject) => void, reject: (err: any) => void }[] = []
+    private isActive: boolean = false
+    //events = new EventEmitter()
 
     constructor() {
+        super()
         this.tdlib = ffi.Library(
-            this.PATH_TO_LIBRARY_FILE,
+            this.PATH_TO_LIBRARY_FILE || "",
             {
                 'td_json_client_create': ['pointer', []],
                 'td_json_client_send': ['void', ['pointer', 'string']],
@@ -45,16 +73,17 @@ export class TdLibClient {
 
     private async init() {
         await asyncTimeout(1000)
+        this.isActive = true
         this.doReceiveLoop()
     }
 
-    private buildQuery(query: TdQuery) {
+    private buildQuery(query: TdObject) {
         const buffer = Buffer.from(JSON.stringify(query) + '\0', 'utf-8')
         //buffer.type = ref.types.CString
         return buffer
     }
 
-    private _send(query: TdQuery) {
+    private _send(query: TdObject) {
         try {
             return new Promise((resolve, reject) => {
                 this.tdlib.td_json_client_send.async(this.client, this.buildQuery(query), (err: Error, res: any) => {
@@ -73,7 +102,7 @@ export class TdLibClient {
         }
     }
 
-    private async _execute(query: TdQuery) {
+    private async _execute(query: TdObject) {
         return new Promise((resolve, reject) => {
             this.tdlib.td_json_client_execute.async(this.client, this.buildQuery(query), (err: Error, res: any) => {
                 if (err) { reject(err) }
@@ -84,7 +113,7 @@ export class TdLibClient {
         })
     }
 
-    private async _receive(timeout = 2): Promise<TdUpdate | TdOk | null> {
+    private async _receive(timeout = 2): Promise<TdObject | null> {
         return new Promise((resolve, reject) => {
             this.tdlib.td_json_client_receive.async(this.client, timeout, (err: Error, res: any) => {
                 if (err) {
@@ -92,13 +121,17 @@ export class TdLibClient {
                     reject(err)
                 }
                 else if (!res) {
-                    resolve(null)
+                    resolve()
                 } else {
                     let res_parsed = JSON.parse(res)
+                    if (!res_parsed["@type"]) {
+                        reject(new Error("Could not parse JSON response into TD Object"))
+                    }
                     if (res_parsed["@type"] == "error") {
-                        reject(<TdError>res_parsed)
+                        console.info("Got TD-Style error, rejecting")
+                        reject(new TdError(<TdObject>res_parsed))
                     } else {
-                        resolve(<TdUpdate>res_parsed)
+                        resolve(<TdObject>res_parsed)
                     }
                 }
             })
@@ -106,21 +139,21 @@ export class TdLibClient {
     }
 
     destroy() {
+        this.isActive = false
         this.tdlib.td_json_client_destroy(this.client)
     }
 
-    async sendQuery(query: TdQuery) {
+    async sendQuery(query: TdObject) {
         let query_id = Math.floor(Math.random() * (2 ** 32) - 1)
         query["@extra"] = query_id
         console.info("Sending req " + query_id + ": " + query["@type"])
         try {
             return this._send(query)
                 .then(() => {
-                    return new Promise<TdUpdate | TdOk>((resolve, reject) => {
+                    return new Promise<TdObject>((resolve, reject) => {
                         this.inFlightRequests[query_id] = { resolve, reject }
                         setTimeout(() => {
-                            // Make this a proper Error!
-                            reject(<TdError>{ "code": 999, "message": "Timed Out" })
+                            reject(new TimeoutError(`Call ${query_id} (${query["@type"]}) timed out`))
                         }, 30000)
                     })
                 })
@@ -129,7 +162,7 @@ export class TdLibClient {
         }
     }
 
-    private async handleUpdateAuthorizationState(authState: TdUpdateAuthorizationState) {
+    private async handleUpdateAuthorizationState(authState: TdObject) {
         console.debug(`Received authorization_state: ${authState.authorization_state["@type"]}`)
         try {
             switch (authState.authorization_state["@type"]) {
@@ -140,18 +173,22 @@ export class TdLibClient {
                             output: process.stdout
                         });
                         rl.question('Update code?', (answer) => {
-                            res(this._send({
-                                '@type': "checkAuthenticationCode",
-                                "code": answer,
-                                "first_name": "Cal",
-                                "last_name": "McLean"
-                            }))
+                            // res(this.sendQuery(<TdQueryGetChats>{
+                            //     "code": answer,
+                            //     "first_name": "Cal",
+                            //     "last_name": "McLean"
+                            // }))
+                            // this.sendQuery(<TdQueryGetChats>{ offset_chat_id: 0 })
                         })
                     })
 
                 case "authorizationStateWaitEncryptionKey":
                     console.debug("Sending checkDatabaseEncryptionKey with default key")
-                    return await this._send({ "@type": "checkDatabaseEncryptionKey", "encryption_key": "" })
+                    let qCheckDatabaseEncrKey: TdObject = {
+                        '@type': "checkDatabaseEncryptionKey",
+                        'encryption_key': ""
+                    }
+                    return await this.sendQuery(qCheckDatabaseEncrKey)
 
                 case "authorizationStateWaitPassword":
                     break
@@ -159,110 +196,120 @@ export class TdLibClient {
                 case "authorizationStateWaitPhoneNumber":
                     console.debug("Sending setAuthenticationPhoneNumber")
                     console.debug("Using number: " + process.env.TELEGRAM_PHONE_NUMBER)
-                    return await this._send({
-                        "@type": "setAuthenticationPhoneNumber",
-                        "phone_number": process.env.TELEGRAM_PHONE_NUMBER,
-                        "allow_flash_call": false,
-                        "is_current_phone_number": true //even though this is ignore
-                        // "@type": "checkAuthenticationBotToken",
-                        // "token": process.env.TELEGRAM_BOT_TOKEN
-                    })
+                    let qSetAuthPhoneNum: TdObject = {
+                        '@type': 'setAuthenticationPhoneNumber',
+                        'phone_number': process.env.TELEGRAM_PHONE_NUMBER ? process.env.TELEGRAM_PHONE_NUMBER : "",
+                        'allow_flash_call': false,
+                        'is_current_phone_number': true
+                    }
+                    return await this.sendQuery(qSetAuthPhoneNum)
 
                 case "authorizationStateWaitTdlibParameters":
-                    return await this._send({
-                        '@type': "setTdlibParameters",
-                        "parameters": {
-                            "use_test_dc": process.env.NODE_ENV == "production" ? true : false,
-                            "database_directory": "", // cwd
-                            "files_directory": "", //cwd
-                            "use_file_database": true,
-                            "use_chat_info_database": true,
-                            "use_message_database": true,
-                            "use_secret_chats": false,
-                            "api_id": process.env.TELEGRAM_API_ID,
-                            "api_hash": process.env.TELEGRAM_API_HASH,
-                            "system_language_code": "en-gb",
-                            "device_model": "Asus Zenbook",
-                            "system_version": "Win10",
-                            "application_version": "1.0.0",
-                            "enable_storage_optimizer": true,
-                            "ignore_file_names": false
-                        }
-                    })
+
+                    let tdLibParams: TdObject = {
+                        '@type': 'setTdLibParameters',
+                        use_test_dc: process.env.NODE_ENV == "production" ? false : true,
+                        database_directory: "",
+                        files_directory: "",
+                        use_file_database: true,
+                        use_chat_info_database: true,
+                        use_message_database: true,
+                        use_secret_chats: false,
+                        api_id: process.env.TELEGRAM_API_ID ? +process.env.TELEGRAM_API_ID : 0,
+                        api_hash: process.env.TELEGRAM_API_HASH ? process.env.TELEGRAM_API_HASH : "",
+                        system_language_code: "en-gb",
+                        device_model: process.env.NODE_ENV == "production" ? process.platform : "Asus Zenbook",
+                        system_version: process.env.NODE_ENV == "production" ? process.config.variables.host_arch : "Win10",
+                        application_version: "1.0.0",
+                        enable_storage_optimizer: true,
+                        ignore_file_names: false
+                    }
+                    console.log(tdLibParams)
+                    return await this.sendQuery(tdLibParams)
 
                 case "authorizationStateReady":
                     console.debug("Authorized and ready")
-                    this.events.emit('ready')
+                    //this.events.emit('ready')
+                    this.emit('ready')
                     break
 
             }
         } catch (err) {
             console.info("Got err from AuthStateHandler")
             console.error(err)
-            return await this._send({
+            return this.sendQuery({
                 '@type': 'getAuthorizationState'
             })
         }
     }
 
     private async doReceiveLoop() {
-        let update;
+        while (this.isActive) {
+            let update: TdObject | null;
 
-        try {
             update = await this._receive()
-        } catch (err) {
-            console.error(`Caught error ${err.code}: ${err.message}, diagnosing`)
-            if (err["@extra"]) {
-                // This error is a response to a manual request, pass it on
-                this.inFlightRequests[err["@extra"]].reject(<TdError>err)
-                delete this.inFlightRequests[err["@extra"]]
-            } else {
-                console.error(`Caught error ${err.code}: ${err.message}`)
-                console.error(err)
-            }
-        }
+            try {
 
-        if (update) {
-            switch (update["@type"]) {
-                case "updateAuthorizationState":
-                    this.handleUpdateAuthorizationState(<TdUpdateAuthorizationState>update)
-                        .catch((err) => {
-                            console.log("got err caught")
-                            console.error(err)
-                            throw err
-                        })
-                    break
-                case "updateOption":
-                    break
-                default:
-                    break
+            } catch (err) {
+                console.error(`Caught error ${err.code}: ${err.message}, diagnosing`)
+                if (err["@extra"]) {
+                    // This error is a response to a manual request, pass it on
+                    this.inFlightRequests[err["@extra"]].reject(new TdError(<TdObject>err))
+                    delete this.inFlightRequests[err["@extra"]]
+                } else {
+                    console.error(`Caught error ${err.code}: ${err.message}`)
+                    console.error(err)
+                }
             }
 
-
-
-            if (update["@extra"]) {
-                /* This is a response to a request that was sent manually via
-                 * sendQuery; there's a promise waiting for it, so just hand it over */
-                //console.debug(`Not directly handling response to query ${update["@extra"]}`)
-                console.debug(`Resolving request ${update["@extra"]} (${update["@type"]})`)
-                this.inFlightRequests[update['@extra']].resolve(update)
-                delete this.inFlightRequests[update["@extra"]]
-            } else {
-                /* This is an unsolicited update; Telegram is notifying us of something.
-                 * Follow it up. */
-
+            if (update) {
                 switch (update["@type"]) {
+                    case "updateAuthorizationState":
+                        this.handleUpdateAuthorizationState(<TdObject>update)
+                            .then((thing) => {
+                                // if (thing instanceof) {
+
+                                // }
+                            })
+                            .catch((err) => {
+                                console.log("got err caught")
+                                console.error(err)
+                                throw err
+                            })
+                        break
                     case "updateOption":
-                        update = <TdUpdateOption>update
-                        console.debug(`Got Option: '${update.name}': ${update.value.value}`)
+                        break
+                    default:
+                        break
                 }
 
-                // console.info("Got unsolicited update")
-                // console.info(update)
-            }
-        }
 
-        this.doReceiveLoop()
+                if (update['@extra']) {
+                    /* This is a response to a request that was sent manually via
+                     * sendQuery; there's a promise waiting for it, so just hand it over */
+                    //console.debug(`Not directly handling response to query ${update["@extra"]}`)
+                    console.debug(`Resolving request ${update["@extra"]} (${update["@type"]})`)
+                    this.inFlightRequests[update['@extra']].resolve(update)
+                    delete this.inFlightRequests[update["@extra"]]
+                } else {
+                    /* This is an unsolicited update; Telegram is notifying us of something.
+                     * Follow it up. */
+
+                    switch (update["@type"]) {
+                        case "updateOption":
+                            let update_option = <TdObject>update
+                            if (update_option.value)
+
+                                console.debug(`Got Option: '${update_option.name}': ${update_option.value ? update_option.value.value : null}`)
+                    }
+
+                    // console.info("Got unsolicited update")
+                    // console.info(update)
+                }
+            }
+
+            this.doReceiveLoop()
+        }
 
     }
 }
