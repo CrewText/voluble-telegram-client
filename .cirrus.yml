@@ -23,7 +23,7 @@ tdlib_task:
 vtc_task:
   npm_modules_script_cache:
     folder: node_modules
-    fingerprint_script: cat package.lock
+    fingerprint_script: cat package-lock.json
     populate_script:
       - npm install
       - npm install typescript -G
