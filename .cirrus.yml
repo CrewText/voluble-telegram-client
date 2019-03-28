@@ -18,4 +18,4 @@ tdlib_task:
       - cp libtdjson.so $TDLIB_PATH
   
 vtc_task:
-  tsc_task: tsc
+  tsc_script: tsc
