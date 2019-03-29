@@ -11,7 +11,6 @@ tdlib_task:
 
   build_tdlib_cache:
     folder: td/build
-    fingerprint_script: touch $TDLIB_PATH && md5sum $TDLIB_PATH
     populate_script:
       - git clone https://github.com/tdlib/td
       - cd td
