@@ -26,6 +26,7 @@ vtc_task:
     fingerprint_script: cat package-lock.json
     populate_script:
       - npm install
-      - npm install typescript -G
     
-  tsc_script: tsc
+  tsc_script:
+    - npm install typescript -g
+    - tsc
